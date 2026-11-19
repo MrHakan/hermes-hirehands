@@ -1,0 +1,12 @@
+{
+  "slug": "security-audit",
+  "title": "Security audit: shifty-cargo",
+  "goal": "Find exploitable issues in the repo, rank them by severity and propose minimal fixes.",
+  "workdir": "~/Projects/shifty-cargo",
+  "section": "Security audit",
+  "suggested_roles": ["AppSec auditor", "Dependency scanner", "Patch engineer", "QA"],
+  "inferred_from": [
+    "You asked whether the shifty-cargo repo has any security holes",
+    "The repo path ~/Projects/shifty-cargo came up earlier in this chat"
+  ]
+}

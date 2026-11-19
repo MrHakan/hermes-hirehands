@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>HireHands · __TITLE__</title>
+<style>/*__DESK_CSS__*/
+.manifest{margin-top:22px}.row{display:grid;grid-template-columns:36px minmax(145px,1fr) minmax(145px,1.15fr) minmax(150px,1fr);gap:16px;align-items:start;padding:15px 0;border-bottom:1px solid var(--line)}.row:last-child{border:0}.columns{padding:0 0 7px;font:11px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em}.summary h3{font:600 17px/1.2 'Helvetica Neue',Arial,sans-serif}.summary p{margin:4px 0;font-size:13px}.model{font:11px/1.45 var(--mono);color:var(--muted)}.why{font-size:14px}.row label{min-height:44px;display:grid;place-items:start center;padding-top:2px}.stat{display:grid;grid-template-columns:minmax(70px,1fr) 48px 24px;align-items:center;gap:6px;font-size:12px}.stat small{font:11px var(--mono);text-align:right}.track{height:5px;background:var(--line)}.track i{display:block;height:100%;background:var(--signal)}.row details{grid-column:2/-1;margin-top:-6px}.row details p{margin:6px 0;color:var(--muted)}.more{color:var(--muted);font-size:12px;margin-top:6px}.mark{text-align:center;color:var(--signal);font:18px Georgia}.row.off .track i{background:var(--muted)}#totals{font:600 15px/1.5 'Helvetica Neue',Arial,sans-serif}#relief{font-size:12px}
+@media(max-width:660px){.columns{display:none}.row:not(.columns){grid-template-columns:28px 1fr;gap:7px 12px}.row> :not(:first-child){grid-column:2}.row label{grid-row:1/4}.row details{margin-top:0}.stat{max-width:340px}.manifest{border-top:1px solid var(--line)}}
+</style></head><body><main id="app"><div class="mast"><span class="brand">HireHands</span><span>Crew manifest</span></div><header><div><h1 id="title"></h1><p id="goal"></p></div></header><div id="metadata" class="byline technical"></div>
+<section class="manifest" aria-label="Proposed team"><div class="row columns" aria-hidden="true"><span>No.</span><span>Assignment / Model</span><span>Responsibility</span><span>Skill estimates</span></div><div id="list"></div></section>
+<footer><div aria-live="polite"><div id="totals"></div><p id="relief"></p></div><div class="actions"><button id="rethink">Revise roster</button><button class="primary" id="hire">Hire team</button></div></footer><p id="feedback" role="status" class="feedback"></p></main>
+<script>/*__DESK_JS__*/
+const team = /*__DATA_JSON__*/null;
+const chosen = new Set();
+const workers = team.members.filter(m => !m.brain);
+const clamp = x => Math.max(0, Math.min(100, Number(x) || 0));
+byId('title').textContent = team.title; byId('goal').textContent = team.goal;
+for (const [label, value] of [['Workspace',team.workdir],['Provider',team.provider],['Category',team.section]]) {
+  if (!value) continue;
+  const pair = el('span'); pair.append(label+' / ',el('strong',value));byId('metadata').append(pair);
+}
+function refresh(){
+  const n = workers.filter(w=>chosen.has(w.key)||w.status==='hired').length;
+  byId('totals').textContent = `1 lead + ${n} ${n===1?'worker':'workers'}`;
+  const relief = Math.min(95,workers.reduce((sum,w)=>sum+(chosen.has(w.key)||w.status==='hired'?clamp(w.relief):0),0));
+  byId('relief').textContent = `Estimated lead workload reduction: ${relief}%`;
+  const existing = team.members.some(m=>m.status==='hired');
+  byId('hire').disabled = existing;byId('hire').textContent = existing?'Profiles already present':`Hire team (${1+n}) →`;
+}
+for (const [i,m] of team.members.entries()) {
+  const row = el('article',null,'row');const summary = el('div',null,'summary');
+  const fixed = m.brain || m.status==='hired';
+  if(fixed){const mark=el('span',m.brain?'01':'✓','mark');mark.setAttribute('aria-label',m.brain?'Lead, included':'Already hired');row.append(mark)}
+  else {const label=el('label');const box=el('input');box.type='checkbox';box.checked=!!m.recommended;
+    box.setAttribute('aria-label',`Include ${m.title}`);if(box.checked)chosen.add(m.key);row.classList.toggle('off',!box.checked);
+    box.onchange=()=>{box.checked?chosen.add(m.key):chosen.delete(m.key);row.classList.toggle('off',!box.checked);refresh()};label.append(box);row.append(label)}
+  summary.append(el('h3',m.title),el('p',m.brain?'Lead · included':`${m.tierLabel} worker`),el('div',m.model,'model'));
+  const duty=el('div',m.mission||m.role||(m.brain?'Assigns work and reviews the evidence in each brief.':''),'why');
+  const ratings=el('div');const stats=Object.entries(m.stats||{});
+  function skill(k,v){const s=el('div',null,'stat');const track=el('span',null,'track');const fill=el('i');fill.style.width=clamp(v)+'%';track.append(fill);s.append(el('span',k),track,el('small',String(clamp(v))));return s}
+  stats.slice(0,3).forEach(([k,v])=>ratings.append(skill(k,v)));
+  row.append(summary,duty,ratings);
+  const details=el('details');details.append(el('summary','Assignment details'),el('p','@'+m.profile,'technical'));
+  if(m.why)details.append(el('p',m.why));if(m.perks?.length)details.append(el('p',m.perks.join(' / ')));
+  stats.slice(3).forEach(([k,v])=>details.append(skill(k,v)));if(!m.brain)details.append(el('p',`Estimated load reduction: ${clamp(m.relief)}%`));row.append(details);byId('list').append(row);
+}
+byId('hire').onclick=()=>dispatch(`HireHands: hire team "${team.slug}". only=${[...chosen].join(',') || '(lead only)'}`);
+byId('rethink').onclick=()=>dispatch(`HireHands: rethink team "${team.slug}". Removed: ${workers.filter(m=>!chosen.has(m.key)&&m.status!=='hired').map(m=>m.title).join(', ')||'none'}. Update the board.`);
+refresh();
+</script></body></html>

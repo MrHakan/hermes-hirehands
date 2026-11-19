@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>HireHands setup · __TITLE__</title>
+<style>/*__DESK_CSS__*/
+.sheet{border-top:1px solid var(--ink);padding:19px 0 22px;display:grid;grid-template-columns:minmax(135px,1fr) minmax(0,3fr);gap:24px}.index{display:block;margin-bottom:5px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px 18px}.field{font-size:12px;color:var(--muted)}.field :is(input,textarea,select){margin-top:3px;font-size:14px}.wide{grid-column:1/-1}details{margin-top:8px}details ul{margin:7px 0;padding-left:18px;color:var(--muted)}.tier{display:grid;grid-template-columns:minmax(100px,1fr) minmax(150px,1.2fr);gap:18px;align-items:center;border-top:1px solid var(--line);padding:9px 0}.tier p{font-size:12px;color:var(--muted)}.tier select{font:12px var(--mono)}.recommendation{font-size:11px;color:var(--signal);margin-top:3px}.provider{display:flex;align-items:center;gap:12px;margin-bottom:14px}.provider select{width:auto;max-width:100%}.notes{font-size:12px;color:var(--muted)}@media(max-width:620px){.sheet{grid-template-columns:1fr;gap:14px}.sheet h2{display:inline}.index{display:inline;margin-right:8px}.fields{grid-template-columns:1fr}.tier{grid-template-columns:minmax(90px,.8fr) minmax(130px,1.2fr);gap:8px}.provider{flex-wrap:wrap}}
+</style></head><body><main id="app"><div class="mast"><span class="brand">HireHands</span><span>Assignment draft</span></div><header><div><h1>Review the brief.</h1><p><strong>No brief was supplied.</strong> This draft comes from the current conversation. Check it before proceeding; no bots have been created.</p><details id="basis"><summary>What was inferred?</summary><ul id="sources"></ul></details></div></header>
+<form id="draft"><section class="sheet"><div><span class="index">01 /</span><h2>Assignment</h2></div><div class="fields"><label class="field wide">Job title<input id="title" name="title" type="text" required></label><label class="field wide">Goal<textarea id="goal" name="goal" rows="2" required></textarea></label><label class="field">Workspace<input id="workdir" name="workspace" type="text" placeholder="~/Projects/…"></label><label class="field">Bots category<input id="section" name="section" type="text"></label><p class="wide notes" id="roles"></p></div></section>
+<section class="sheet"><div><span class="index">02 /</span><h2>Model choices</h2></div><div><div class="provider"><label for="provider">Provider</label><select id="provider" name="provider"></select></div><div id="tiers"></div></div></section>
+<footer><p>Next: review the proposed team.</p><div class="actions"><button type="button" id="cancel">Cancel</button><button id="confirm" type="submit" class="primary">Confirm brief →</button></div></footer><p id="feedback" class="feedback" role="status"></p></form></main>
+<script>/*__DESK_JS__*/
+const catalog = /*__DATA_JSON__*/null;
+const job = catalog.job;
+for (const k of ['title','goal','workdir','section']) byId(k).value=job[k]||(k==='section'?job.title:'')||'';
+for (const s of job.inferred_from||[]) byId('sources').append(el('li',s));
+byId('basis').hidden=!byId('sources').children.length;
+byId('roles').textContent=job.suggested_roles?.length?'Likely roles: '+job.suggested_roles.join(', '):'';
+const provider=byId('provider');const choices=new Map();
+for(const [id,p] of Object.entries(catalog.providers))provider.add(new Option(`${id}${p.billing==='unknown'?'':' / '+(p.billing==='api_key'?'API key':'OAuth')}`,id));
+provider.value=Object.hasOwn(catalog.providers,job.provider)?job.provider:catalog.active_provider;
+function showTiers(){
+  const p=catalog.providers[provider.value];const body=byId('tiers');body.replaceChildren();
+  if (!p?.models.length){body.append(el('p','No models listed. Choose another provider or configure Hermes first.'));byId('confirm').disabled=true;return}
+  byId('confirm').disabled=false;
+  if(!choices.has(provider.value))choices.set(provider.value,{...p.picks});const selected=choices.get(provider.value);
+  for (const t of catalog.tiers){
+    const row=el('div',null,'tier');const text=el('div');const label=el('label');label.htmlFor='tier-'+t.id;label.append(el('strong',t.label));text.append(label,el('p',t.hint));
+    const controls=el('div');const sel=el('select');sel.id=label.htmlFor;sel.name=t.id;
+    for(const model of p.models)sel.add(new Option(model.id, model.id));sel.value=selected[t.id];if(!sel.value)sel.selectedIndex=0;
+    const rec=el('div',null,'recommendation');const sync=()=>{selected[t.id]=sel.value;rec.textContent=sel.value===p.picks[t.id]?'Recommended':`Suggested: ${p.picks[t.id]}`};sel.onchange=sync;sync();controls.append(sel,rec);row.append(text,controls);body.append(row)
+  }
+}
+provider.onchange=showTiers;showTiers();
+byId('cancel').onclick=()=>dispatch(`HireHands setup cancelled for "${job.slug}". Do not create anything.`);
+byId('draft').onsubmit=e=>{e.preventDefault();if(byId('confirm').disabled)return;const m=choices.get(provider.value);dispatch([`HireHands setup confirmed for "${job.slug}".`,`provider=${provider.value}`,`models: brain=${m.brain}, heavy=${m.heavy}, standard=${m.standard}, light=${m.light}`,...['title','section','workdir','goal'].map(k=>`${k}: ${byId(k).value.trim()||'(none)'}`),'Design the team with these models and show the hiring board.'].join('\n'))};
+</script></body></html>
