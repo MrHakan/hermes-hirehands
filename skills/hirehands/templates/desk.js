@@ -14,7 +14,8 @@ async function dispatch(text) {
   status.replaceChildren();
   try {
     if (typeof window.hermes?.send === 'function') {
-      await window.hermes.send(text);
+      const ack = await window.hermes.send(text);
+      if (ack?.ok !== true) throw new Error(ack?.error || 'unconfirmed');
       status.textContent = 'Sent to Hermes.';
       document.querySelectorAll('button, select, input, textarea').forEach(n => n.disabled = true);
       return;

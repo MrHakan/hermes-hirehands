@@ -102,7 +102,7 @@ Then open the Bots tab, find the new category, open the lead (gold hexagon, pinn
 job. Want everyone in one room? Create a group chat from that category in the desktop app.
 
 Team files live in `~/.hermes/hirehands/<slug>/`: `team.json`, `board.html`, `ledger.md` (the lead's
-decision log), plus `job.json` and `setup.html` when the setup screen was used.
+decision log), plus `drafts/<draft>/job.json` and `drafts/<draft>/setup.html` for each setup preview.
 
 ### Script reference
 

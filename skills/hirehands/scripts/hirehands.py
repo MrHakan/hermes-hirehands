@@ -29,6 +29,7 @@ import string
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 
 ROOT_HOME = Path(os.environ.get("HERMES_ROOT") or os.path.expanduser("~/.hermes"))
@@ -211,6 +212,21 @@ def models() -> dict:
 
 
 # ---------------------------------------------------------------- team model
+FIRST_NAMES = (
+    "Alice Beatrice Bridget Chloe Clara Colin Declan Diego Eleanor Elliot Evelyn Felix "
+    "Fiona Freya Gabriel Greta Hugo Isaac Jasper Julian Liam Luca Maeve Malcolm "
+    "Matilda Miles Naomi Nora Oliver Oscar Owen Riley Rowan Scarlett Theo Vincent"
+).split()
+
+
+def draw_names(count: int, exclude=()) -> list[str]:
+    taken = {name.casefold() for name in exclude}
+    pool = [name for name in FIRST_NAMES if name.casefold() not in taken]
+    if not 1 <= count <= len(pool):
+        raise SystemExit(f"Choose between 1 and {len(pool)} new names")
+    return random.sample(pool, count)
+
+
 def load_team(path: Path) -> dict:
     team = json.loads(path.read_text(encoding="utf-8"))
     team["slug"] = slugify(team.get("slug") or team.get("title", "team"))
@@ -385,14 +401,16 @@ def write_board(team: dict, statuses: dict | None = None) -> Path:
 def cmd_setup(args) -> None:
     job = json.loads(Path(args.job).expanduser().read_text(encoding="utf-8"))
     job["slug"] = slugify(job.get("slug") or job.get("title", "team"))
-    out_dir = TEAMS_DIR / job["slug"]
-    out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "job.json").write_text(json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
     catalog = models()
-    data = {"job": job, **catalog}
+    draft = uuid.uuid4().hex
+    out_dir = TEAMS_DIR / job["slug"] / "drafts" / draft
+    out_dir.mkdir(parents=True)
+    snapshot = out_dir / "job.json"
+    snapshot.write_text(json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
+    data = {**catalog, "job": job, "draft": draft}
     path = out_dir / "setup.html"
     path.write_text(_render(SETUP_TEMPLATE, data, str(job.get("title", "HireHands setup"))), encoding="utf-8")
-    print(json.dumps({"slug": job["slug"], "setup": str(path), "job_json": str(out_dir / "job.json"),
+    print(json.dumps({"slug": job["slug"], "draft": draft, "setup": str(path), "job_json": str(snapshot),
                       "active_provider": catalog["active_provider"],
                       "recommended": catalog["providers"].get(catalog["active_provider"], {}).get("picks")},
                      ensure_ascii=False, indent=1))
@@ -559,6 +577,9 @@ def main() -> None:
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("detect")
     sub.add_parser("models")
+    names = sub.add_parser("names", help="Draw distinct international first names for new Bots")
+    names.add_argument("count", type=int)
+    names.add_argument("--exclude", nargs="*", default=[])
     sub.add_parser("setup").add_argument("job")
     sub.add_parser("plan").add_argument("team")
     h = sub.add_parser("hire")
@@ -568,6 +589,9 @@ def main() -> None:
     sub.add_parser("status").add_argument("team")
     sub.add_parser("link")
     args = ap.parse_args()
+    if args.cmd == "names":
+        print(json.dumps(draw_names(args.count, args.exclude)))
+        return
     if args.cmd in ("detect", "models"):
         print(json.dumps(detect() if args.cmd == "detect" else models(), ensure_ascii=False, indent=1))
         return

@@ -40,6 +40,12 @@ class HireHandsTest(unittest.TestCase):
     def tearDown(self):
         self._tmp.cleanup()
 
+    def test_draw_names_are_unique_and_exclude_retained_members(self):
+        kept = self.hh.draw_names(7)
+        extra = self.hh.draw_names(4, kept)
+        self.assertEqual(len(set(kept + extra)), 11)
+        self.assertTrue(set(kept + extra) <= set(self.hh.FIRST_NAMES))
+
     def test_slugify_handles_turkish_and_symbols(self):
         self.assertEqual(self.hh.slugify("Güvenlik Denetimi: Şifre!"), "guvenlik-denetimi-sifre")
         self.assertEqual(self.hh.slugify("???"), "team")
@@ -110,16 +116,32 @@ class HireHandsTest(unittest.TestCase):
         self.assertIn('"slug": "security-audit"', page)
 
     def test_setup_screen_embeds_job_and_catalog(self):
+        from argparse import Namespace
+        from contextlib import redirect_stdout
+        from io import StringIO
+
         self.hh.models = lambda: {"active_provider": "anthropic", "current_model": "claude-opus-5-5",
                                   "providers": {"anthropic": {"billing": "subscription", "models": [
                                       {"id": "claude-fable-5-2", "hint": "x"}], "picks": FAKE_ENV["picks"]}},
                                   "tiers": [{"id": "brain", "label": "Brain", "hint": "h"}]}
 
-        class Args:
-            job = str(EXAMPLES / "security-audit.job.json")
+        def setup(path):
+            out = StringIO()
+            with redirect_stdout(out):
+                self.hh.cmd_setup(Namespace(job=str(path)))
+            return json.loads(out.getvalue())
 
-        self.hh.cmd_setup(Args())
-        page = (self.tmp / "teams" / "security-audit" / "setup.html").read_text()
+        first = setup(EXAMPLES / "security-audit.job.json")
+        snapshot = Path(first["job_json"])
+        original = json.loads(snapshot.read_text())
+        revised = self.tmp / "revised.json"
+        revised.write_text(json.dumps({**original, "goal": "Review the revised documentation."}))
+        second = setup(revised)
+        self.assertNotEqual(first["job_json"], second["job_json"])
+        self.assertNotEqual(first["setup"], second["setup"])
+        self.assertEqual(json.loads(snapshot.read_text()), original)
+        page = Path(first["setup"]).read_text()
+        self.assertIn(f'"draft": "{snapshot.parent.name}"', page)
         self.assertIn("inferred_from", page)
         self.assertIn("claude-fable-5-2", page)
 

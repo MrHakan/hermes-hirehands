@@ -5,11 +5,17 @@
 </style></head><body><main id="app"><div class="mast"><span class="brand">HireHands</span><span>Assignment draft</span></div><header><div><h1>Review the brief.</h1><p><strong>No brief was supplied.</strong> This draft comes from the current conversation. Check it before proceeding; no bots have been created.</p><details id="basis"><summary>What was inferred?</summary><ul id="sources"></ul></details></div></header>
 <form id="draft"><section class="sheet"><div><span class="index">01 /</span><h2>Assignment</h2></div><div class="fields"><label class="field wide">Job title<input id="title" name="title" type="text" required></label><label class="field wide">Goal<textarea id="goal" name="goal" rows="2" required></textarea></label><label class="field">Workspace<input id="workdir" name="workspace" type="text" placeholder="~/Projects/…"></label><label class="field">Bots category<input id="section" name="section" type="text"></label><p class="wide notes" id="roles"></p></div></section>
 <section class="sheet"><div><span class="index">02 /</span><h2>Model choices</h2></div><div><div class="provider"><label for="provider">Provider</label><select id="provider" name="provider"></select></div><div id="tiers"></div></div></section>
-<footer><p>Next: review the proposed team.</p><div class="actions"><button type="button" id="cancel">Cancel</button><button id="confirm" type="submit" class="primary">Confirm brief →</button></div></footer><p id="feedback" class="feedback" role="status"></p></form></main>
+<footer><p>Next: review the proposed team.</p><div class="actions"><button type="button" id="cancel">Cancel</button><button id="confirm" type="button" class="primary">Confirm brief →</button></div></footer><p id="feedback" class="feedback" role="status"></p></form></main>
 <script>/*__DESK_JS__*/
 const catalog = /*__DATA_JSON__*/null;
 const job = catalog.job;
-for (const k of ['title','goal','workdir','section']) byId(k).value=job[k]||(k==='section'?job.title:'')||'';
+const fields = ['title','section','workdir','goal'].map(byId);
+const initial = new Map();
+for (const field of fields) {
+  field.value = job[field.id] ?? (field.id === 'section' ? job.title : '') ?? '';
+  initial.set(field, field.value);
+  field.addEventListener('input', () => field.setCustomValidity(''));
+}
 for (const s of job.inferred_from||[]) byId('sources').append(el('li',s));
 byId('basis').hidden=!byId('sources').children.length;
 byId('roles').textContent=job.suggested_roles?.length?'Likely roles: '+job.suggested_roles.join(', '):'';
@@ -30,5 +36,19 @@ function showTiers(){
 }
 provider.onchange=showTiers;showTiers();
 byId('cancel').onclick=()=>dispatch(`HireHands setup cancelled for "${job.slug}". Do not create anything.`);
-byId('draft').onsubmit=e=>{e.preventDefault();if(byId('confirm').disabled)return;const m=choices.get(provider.value);dispatch([`HireHands setup confirmed for "${job.slug}".`,`provider=${provider.value}`,`models: brain=${m.brain}, heavy=${m.heavy}, standard=${m.standard}, light=${m.light}`,...['title','section','workdir','goal'].map(k=>`${k}: ${byId(k).value.trim()||'(none)'}`),'Design the team with these models and show the hiring board.'].join('\n'))};
+// Inline previews allow scripts, not native form submission. Validate explicitly.
+byId('confirm').onclick=()=>{
+  if (byId('confirm').disabled) return;
+  for (const field of fields) {
+    field.setCustomValidity(field.required && !field.value.trim() ? 'Enter a value.' : '');
+  }
+  if (!byId('draft').reportValidity()) return;
+  const m=choices.get(provider.value);
+  const lines=[`HireHands setup confirmed for "${job.slug}". draft=${catalog.draft}; design only.`,
+    `provider=${provider.value}`, `models: brain=${m.brain}, heavy=${m.heavy}, standard=${m.standard}, light=${m.light}`];
+  for (const field of fields) {
+    if (field.value !== initial.get(field)) lines.push(`${field.id}: ${field.value.trim()||'(none)'}`);
+  }
+  dispatch(lines.join('\n'));
+};
 </script></body></html>

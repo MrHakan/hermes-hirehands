@@ -32,7 +32,7 @@
     },
     {
       "key": "deps",
-      "title": "Kaan · Supply Chain",
+      "title": "Jasper · Supply Chain",
       "role": "Dependency scanner",
       "tier": "light",
       "relief": 15,
@@ -45,7 +45,7 @@
     },
     {
       "key": "fix",
-      "title": "Deniz · Patch Engineer",
+      "title": "Maeve · Patch Engineer",
       "role": "Fix implementer",
       "tier": "standard",
       "relief": 30,
@@ -58,7 +58,7 @@
     },
     {
       "key": "qa",
-      "title": "Ece · QA",
+      "title": "Felix · QA",
       "role": "QA and regression tester",
       "tier": "standard",
       "relief": 20,
