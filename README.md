@@ -9,6 +9,18 @@ one Bots category named after the job.
 
 ![Hiring board](docs/board.png)
 
+## How to Install on Hermes Agent
+
+Paste this prompt into your Hermes Agent chat:
+
+```text
+Install HireHands in my current Hermes profile. Run:
+hermes skills install MrHakan/hermes-hirehands/skills/hirehands
+Then verify that hirehands appears in `hermes skills list`. If the install is blocked, tell me why instead of forcing it. Don't create a team yet.
+```
+
+Once installed, open a new Bot Chat and type `/hirehands`. Prefer the terminal? See [Manual installation](#manual-installation).
+
 ## Why
 
 Building a multi-agent workflow in Hermes by hand means creating each Bot, picking its model,
@@ -60,7 +72,7 @@ model picker with a recommendation for every tier. Nothing is designed or create
 
 ![Setup screen](docs/setup.png)
 
-## Install
+## Manual installation
 
 Requires Hermes Agent with Bot Mode (the desktop app) on macOS or Linux.
 
